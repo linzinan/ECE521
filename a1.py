@@ -18,7 +18,6 @@ def nearest_neighbors(distance_matrix, x_star, index, k):
 	resp = np.zeros(np.shape(inv_e_dist))
 	run_ind = tf.Session().run(indices)
 	resp.put(tf.Session().run(indices), 1 / k)
-
 	return resp
 
 
@@ -105,25 +104,65 @@ def main():
 
 	k_list = [1, 3, 5, 50]
 	# Train MSE
-	train_mse = list()
-	e_dist = euclidean_distance(trainData, trainData)
+	# train_mse = list()
+	# e_dist = euclidean_distance(trainData, trainData)
+	# for k in k_list:
+	# 	print ("Calculating for k: " + str(k))
+	# 	predictions = list()
+	# 	for index in range(len(trainData)):
+	# 		resp = nearest_neighbors(e_dist, trainData[index], index, k)
+	# 		prediction = np.transpose(trainTarget) * resp
+	# 		predictions.append(prediction[0][index])
+
+	# 	print (trainData)
+	# 	print (predictions)
+	# 	mse = mean_squared_error(predictions, trainTarget)
+	# 	train_mse.append(mse)
+
+	# print ("train mse: ")
+	# print (train_mse)
+
+	# Train MSE
+	validate_mse = list()
+	e_dist = euclidean_distance(validData, trainData)
 	for k in k_list:
 		print ("Calculating for k: " + str(k))
 		predictions = list()
-		for index in range(len(trainData)):
-			resp = nearest_neighbors(e_dist, trainData[index], index, k)
+		for index in range(len(validData)):
+			resp = nearest_neighbors(e_dist, validData[index], index, k)
+			prediction = np.transpose(trainTarget) * resp
+			print (prediction[0])
+			print (index)
+			predictions.append(prediction[0])
+			#print ("for point: " + str(validData[index]) + ", prediction: " + str(prediction))
+
+		print (np.transpose(validData))
+		print (predictions)
+		mse = mean_squared_error(predictions, validTarget)
+		validate_mse.append(mse)
+
+	print ("validation mse: ")
+	print (validate_mse)
+
+	# Train MSE
+	test_mse = list()
+	e_dist = euclidean_distance(testData, trainData)
+	for k in k_list:
+		print ("Calculating for k: " + str(k))
+		predictions = list()
+		for index in range(len(testData)):
+			resp = nearest_neighbors(e_dist, testData[index], index, k)
 			prediction = np.transpose(trainTarget) * resp
 			predictions.append(prediction[0][index])
-			#print ("for point: " + str(trainData[index]) + ", prediction: " + str(prediction))
+			#print ("for point: " + str(testData[index]) + ", prediction: " + str(prediction))
 
-		print (trainData)
+		print (testData)
 		print (predictions)
-		mse = mean_squared_error(predictions, trainTarget)
-		train_mse.append(mse)
+		mse = mean_squared_error(predictions, testTarget)
+		test_mse.append(mse)
 
 	print ("train mse: ")
-	print (train_mse)
-
+	print (test_mse)
 
 
 
