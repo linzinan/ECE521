@@ -25,38 +25,6 @@ def mean_squared_error(prediction, target):
 	return ((prediction - target) ** 2).mean() / 2
 
 
-def k_nearest_neighbors(x_train, y_train, x_test, k):
-	predictions = list()
-
-	for x in x_test:
-		prediction = knn_predict(x_train, y_train, x, k)
-		prediction.append(prediction)
-
-	return predictions
-
-
-
-
-
-
-
-
-
-def knn_predict(x_train, y_train, x_test, k):
-
-	inverse_distance_matrix = 1 / distance_matrix
-	values, indices = tf.nn.top_k(inverse_distance_matrix, k)
-
-
-
-	resp = np.zeros(np.shape(values)[0])
-	resp.put(sess.run(indices[x]), 1 / k)
-
-
-	one_hot = np.zeros(np.shape(values)[0])
-	one_hot.put(sess.run(indices[x]), 1 / k)
-	return resp, one_hot
-
 def main():
 	sess = tf.Session()
 
@@ -75,11 +43,13 @@ def main():
 	testData, testTarget = Data[randIdx[90:100]], Target[randIdx[90:100]]
 
 	###########
-	plt.scatter(Data, Target, c="g", alpha=0.5)
+	plt.scatter(trainData, trainTarget, c="g", alpha=0.5)
+	plt.scatter(validData, validTarget, c="r", alpha=0.5)
+	plt.scatter(testData, testTarget, c="b", alpha=0.5)
 	plt.xlabel("X")
 	plt.ylabel("Y")
 	plt.legend(loc=2)
-	#plt.show()
+	plt.show()
 	###########
 
 	# distance_matrix = (sess.run(euclidean_distance(Data, Target)))
@@ -108,15 +78,15 @@ def main():
 	# e_dist = euclidean_distance(trainData, trainData)
 	# for k in k_list:
 	# 	print ("Calculating for k: " + str(k))
-	# 	predictions = list()
+	# 	full_rank_resp = list()
 	# 	for index in range(len(trainData)):
 	# 		resp = nearest_neighbors(e_dist, trainData[index], index, k)
-	# 		prediction = np.transpose(trainTarget) * resp
-	# 		predictions.append(prediction[0][index])
+	# 		full_rank_resp.append(resp)
 
-	# 	print (trainData)
-	# 	print (predictions)
-	# 	mse = mean_squared_error(predictions, trainTarget)
+	# 	print (np.shape(full_rank_resp))
+	# 	prediction = np.matmul(np.transpose(trainTarget),np.transpose(full_rank_resp))
+	# 	print (prediction)
+	# 	mse = mean_squared_error(prediction, trainTarget)
 	# 	train_mse.append(mse)
 
 	# print ("train mse: ")
@@ -127,18 +97,16 @@ def main():
 	e_dist = euclidean_distance(validData, trainData)
 	for k in k_list:
 		print ("Calculating for k: " + str(k))
-		predictions = list()
+		print (np.transpose(validData))
+		full_rank_resp = list()
 		for index in range(len(validData)):
 			resp = nearest_neighbors(e_dist, validData[index], index, k)
-			prediction = np.transpose(trainTarget) * resp
-			print (prediction[0])
-			print (index)
-			predictions.append(prediction[0])
-			#print ("for point: " + str(validData[index]) + ", prediction: " + str(prediction))
+			full_rank_resp.append(resp)
 
-		print (np.transpose(validData))
-		print (predictions)
-		mse = mean_squared_error(predictions, validTarget)
+		prediction = np.matmul(np.transpose(trainTarget), np.transpose(full_rank_resp))
+		print (prediction)
+		
+		mse = mean_squared_error(prediction, validTarget)
 		validate_mse.append(mse)
 
 	print ("validation mse: ")
@@ -149,19 +117,19 @@ def main():
 	e_dist = euclidean_distance(testData, trainData)
 	for k in k_list:
 		print ("Calculating for k: " + str(k))
-		predictions = list()
+		print (np.transpose(testData))
+		full_rank_resp = list()
 		for index in range(len(testData)):
 			resp = nearest_neighbors(e_dist, testData[index], index, k)
-			prediction = np.transpose(trainTarget) * resp
-			predictions.append(prediction[0][index])
-			#print ("for point: " + str(testData[index]) + ", prediction: " + str(prediction))
+			full_rank_resp.append(resp)
 
-		print (testData)
-		print (predictions)
-		mse = mean_squared_error(predictions, testTarget)
+		prediction = np.matmul(np.transpose(trainTarget), np.transpose(full_rank_resp))
+		print (prediction)
+		
+		mse = mean_squared_error(prediction, testTarget)
 		test_mse.append(mse)
 
-	print ("train mse: ")
+	print ("test mse: ")
 	print (test_mse)
 
 
