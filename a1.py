@@ -1,68 +1,146 @@
 import tensorflow as tf
 import numpy as np
-from matplotlib import pyplot as plt
-import matplotlib
+#from matplotlib import pyplot as plt
+#import matplotlib
+sess = tf.Session()
 
 def euclidean_distance(X, Z):
+	global sess
 	x_sq = tf.reshape(tf.reduce_sum(X*X, 1), [-1, 1])
 	z_sq = tf.reshape(tf.reduce_sum(Z*Z, 1), [1, -1])
 	D = x_sq - 2*tf.matmul(X, tf.transpose(Z)) + z_sq
-	return tf.Session().run(tf.sqrt(D))
+	matrix = sess.run(tf.sqrt(D))
+	return matrix
 
 def nearest_neighbors(distance_matrix, x_star, index, k):
 	# x = training data = list
 	# k = number of neighbors
-
+	global sess
 	inv_e_dist = 1 / distance_matrix[index]
 	values, indices = tf.nn.top_k(inv_e_dist, k)
 	resp = np.zeros(np.shape(inv_e_dist))
-	run_ind = tf.Session().run(indices)
-	resp.put(tf.Session().run(indices), 1 / k)
-	return resp
+	run_ind = sess.run(indices)
+	np.put(resp, run_ind, 1.0 / k)
+	return 
+
+def nearest_neighbors_part3(distance_matrix, x_star, index, k):
+	# x = training data = list
+	# k = number of neighbors
+	global sess
+	inv_e_dist = 1 / distance_matrix[index]
+	values, indices = tf.nn.top_k(inv_e_dist, k)
+	return (sess.run(indices))
+	quit()
+	y, idx, count = tf.unique_with_counts(values)
+	y, idx, count = sess.run(y), sess.run(idx), sess.run(count)
+	count = list(count)
+	return y[count.index(max(count))]
+
 
 
 def mean_squared_error(prediction, target):
 	return ((prediction - target) ** 2).mean() / 2
 
-
-def main():
-	sess = tf.Session()
-
-
-	A = tf.constant([[0, 0], [1, 1], [2, 2]], dtype=tf.float32)
-	B = tf.constant([[0, 0], [-1, -1]], dtype=tf.float32)
-
-
-	np.random.seed(521)
+def get_data():
 	Data = np.linspace(1.0, 10.0, num = 100) [:, np.newaxis]
 	Target = np.sin(Data) + 0.1 * np.power(Data, 2) + 0.5 * np.random.randn(100, 1)
+	return Data, Target
+
+def partition_data(Data, Target):
+	np.random.seed(521)
 	randIdx = np.arange(100)
 	np.random.shuffle(randIdx)
 	trainData, trainTarget  = Data[randIdx[:80]], Target[randIdx[:80]]
 	validData, validTarget = Data[randIdx[80:90]], Target[randIdx[80:90]]
 	testData, testTarget = Data[randIdx[90:100]], Target[randIdx[90:100]]
+	return trainData, trainTarget, validData, validTarget, testData, testTarget
+
+def test_k_values(data_points, trainData, trainTarget, kval = None):
+	if kval == None:
+		k_list = [1, 3, 5]
+		prediction_list = list()
+	else:
+		k_list = [kval]
+	data_mse = list()
+	e_dist = euclidean_distance(data_points, trainData)
+	for k in k_list:
+		print ("Calculating for k: " + str(k))
+		full_rank_resp = list()
+		for index in range(len(data_points)):
+			resp = nearest_neighbors(e_dist, data_points[index], index, k)
+			full_rank_resp.append(resp)
+
+		prediction = np.matmul(np.transpose(trainTarget), np.transpose(full_rank_resp))
+		print (prediction)
+		mse = mean_squared_error(prediction, trainTarget)
+		prediction_list.append(prediction)
+		data_mse.append(mse)
+
+	print ("mse: ")
+	print (data_mse)
+	return data_mse, prediction_list
+
+def test_k_values_part3(data_points, trainData, trainTarget, kval = None):
+	if kval == None:
+		k_list = [1, 3]
+	else:
+		k_list = [kval]
+	prediction_list = list()
+	data_mse = list()
+	e_dist = euclidean_distance(data_points, trainData)
+	print (np.shape(e_dist))
+	for k in k_list:
+		print ("Calculating for k: " + str(k))
+		full_rank_resp = list()
+		for index in range(len(data_points)):
+			indices = nearest_neighbors_part3(e_dist, data_points[index], index, k)
+			values = list()
+			for index in indices:
+				values.append(trainTarget[index])
+			y, idx, count = tf.unique_with_counts(values)
+			y, idx, count = sess.run(y), sess.run(idx), list(sess.run(count))
+			full_rank_resp.append(y[count.index(max(count))])
+		print (full_rank_resp)
+
+	return data_mse, prediction_list
+
+
+def data_segmentation(data_path, target_path, task):
+	# task = 0 >> select the name ID targets for face recognition task
+	# task = 1 >> select the gender ID targets for gender recognition task 
+	data = np.load(data_path) / 255.0
+	data = np.reshape(data, [-1, 32*32])
+
+	target = np.load(target_path)
+	np.random.seed(45689)
+	rnd_idx = np.arange(np.shape(data)[0])
+	np.random.shuffle(rnd_idx)
+	trBatch = int(0.8*len(rnd_idx))
+	validBatch = int(0.1*len(rnd_idx))
+	trainData, validData, testData = data[rnd_idx[1:trBatch],:], \
+			data[rnd_idx[trBatch+1:trBatch + validBatch],:],\
+			data[rnd_idx[trBatch + validBatch+1:-1],:]
+	trainTarget, validTarget, testTarget = target[rnd_idx[1:trBatch], task], \
+			target[rnd_idx[trBatch+1:trBatch + validBatch], task],\
+			target[rnd_idx[trBatch + validBatch + 1:-1], task]
+	return trainData, validData, testData, trainTarget, validTarget, testTarget
+
+
+def main():
+	sess = tf.Session()
+
+	Data, Target = get_data()
+	trainData, trainTarget, validData, validTarget, testData, testTarget = partition_data(Data, Target)
 
 	###########
-	plt.scatter(trainData, trainTarget, c="g", alpha=0.5)
-	plt.scatter(validData, validTarget, c="r", alpha=0.5)
-	plt.scatter(testData, testTarget, c="b", alpha=0.5)
-	plt.xlabel("X")
-	plt.ylabel("Y")
-	plt.legend(loc=2)
-	plt.show()
+	# plt.scatter(trainData, trainTarget, c="g", alpha=0.5)
+	# plt.scatter(validData, validTarget, c="r", alpha=0.5)
+	# plt.scatter(testData, testTarget, c="b", alpha=0.5)
+	# plt.xlabel("X")
+	# plt.ylabel("Y")
+	# plt.legend(loc=2)
+	
 	###########
-
-	# distance_matrix = (sess.run(euclidean_distance(Data, Target)))
-	# distance_matrix_train = (sess.run(euclidean_distance(trainData, trainTarget)))
-
-	# responsibility, one_hot = nearest_neighbors(1, 10, distance_matrix)
-	# y_hat = np.transpose(Target) * responsibility
-	# target_one_hot = np.transpose(Target) * one_hot
-	# mean_squared_error = ((np.transpose(y_hat) - (target_one_hot)) ** 2).mean()
-
-	# print (mean_squared_error)
-	#print (Data)
-	#print (Target)
 
 	'''
 	Part 2. 2 Prediction
@@ -72,68 +150,48 @@ def main():
 	k using the validation error.
 	'''
 
-	k_list = [1, 3, 5, 50]
-	# Train MSE
-	# train_mse = list()
-	# e_dist = euclidean_distance(trainData, trainData)
-	# for k in k_list:
-	# 	print ("Calculating for k: " + str(k))
-	# 	full_rank_resp = list()
-	# 	for index in range(len(trainData)):
-	# 		resp = nearest_neighbors(e_dist, trainData[index], index, k)
-	# 		full_rank_resp.append(resp)
-
-	# 	print (np.shape(full_rank_resp))
-	# 	prediction = np.matmul(np.transpose(trainTarget),np.transpose(full_rank_resp))
-	# 	print (prediction)
-	# 	mse = mean_squared_error(prediction, trainTarget)
-	# 	train_mse.append(mse)
-
-	# print ("train mse: ")
-	# print (train_mse)
 
 	# Train MSE
-	validate_mse = list()
-	e_dist = euclidean_distance(validData, trainData)
-	for k in k_list:
-		print ("Calculating for k: " + str(k))
-		print (np.transpose(validData))
-		full_rank_resp = list()
-		for index in range(len(validData)):
-			resp = nearest_neighbors(e_dist, validData[index], index, k)
-			full_rank_resp.append(resp)
+	#train_mse, _ = test_k_values(trainData, trainData, trainTarget)
 
-		prediction = np.matmul(np.transpose(trainTarget), np.transpose(full_rank_resp))
-		print (prediction)
-		
-		mse = mean_squared_error(prediction, validTarget)
-		validate_mse.append(mse)
+	# Validation MSE
+	#print ("Validation MSE")
+	#valid_mse, _ = test_k_values(validData, trainData, trainTarget)
 
-	print ("validation mse: ")
-	print (validate_mse)
+	# Test MSE
+	#print ("Test MSE")
+	#test_mse, _ = test_k_values(testData, trainData, trainTarget)
 
-	# Train MSE
-	test_mse = list()
-	e_dist = euclidean_distance(testData, trainData)
-	for k in k_list:
-		print ("Calculating for k: " + str(k))
-		print (np.transpose(testData))
-		full_rank_resp = list()
-		for index in range(len(testData)):
-			resp = nearest_neighbors(e_dist, testData[index], index, k)
-			full_rank_resp.append(resp)
+	# random points MSE
+	#print ("X MSE")
+	#X = np.linspace(0.0, 11.0, num = 1000)[:, np.newaxis]
+	#x_mse, prediction_list = test_k_values(X, trainData, trainTarget)
+	#print (x_mse)
+	#print (prediction_list)
 
-		prediction = np.matmul(np.transpose(trainTarget), np.transpose(full_rank_resp))
-		print (prediction)
-		
-		mse = mean_squared_error(prediction, testTarget)
-		test_mse.append(mse)
+	# for prediction in prediction_list:
+	# 	plt.figure()
+	# 	plt.scatter(Data, Target, c = "b", alpha = 0.5)
+	# 	plt.plot(X, np.transpose(prediction), c = "g")
+	# #plt.show()
 
-	print ("test mse: ")
-	print (test_mse)
+	'''
+	Part 3. 1 Predicting class label
+	Modify the prediction function for regression in section 1 and use 
+	majority voting over k nearest neighbors to predict the final class. 
+	You may find tf.unique with counts helpful for this task. Include 
+	the relevant snippet of code for this task.
+	'''
+	# task 0
+	trainData, validData, testData, trainTarget, validTarget, testTarget = data_segmentation("data.npy", "target.npy", 0)
 
-
-
+	train_mse, prediction_list = test_k_values_part3(trainData, trainData, trainTarget)
+	
+	for prediction in prediction_list:
+		y, idx, count = tf.unique_with_counts(tf.transpose(prediction))
+		print (sess.run(y))
+		#print (sess.run(idx))
+		print (sess.run(count))
 
 
 
