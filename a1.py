@@ -11,7 +11,7 @@ import tensorflow as tf
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
-import sys
+
 sess = tf.Session()
 
 def euclidean_distance(X, Z):
@@ -29,7 +29,6 @@ def euclidean_distance(X, Z):
 	return matrix
 
 def nearest_neighbors(distance_matrix, x_star, index, k):
-
 	global sess
 	inv_e_dist = 1.0 / distance_matrix[index]
 	values, indices = tf.nn.top_k(inv_e_dist, k)
@@ -57,15 +56,11 @@ def mean_squared_error(prediction, target):
 	return ((prediction - target) ** 2).mean() / 2
 
 def anton_error(prediction, target):
-	print (prediction)
-	print (target)
-	diff = prediction - target
 	num_error = 0
 	for i in range(len(prediction)):
 		if prediction[i] != target[i]:
 			num_error += 1
-	return num_error / float(len(target))
-	return 1.0 - (len(np.nonzero(prediction - target)) / float(len(target)))
+	return (1.0 - (num_error / float(len(target))))
 
 def get_data():
 	Data = np.linspace(1.0, 10.0, num = 100) [:, np.newaxis]
@@ -92,7 +87,7 @@ def test_k_values(data_points, trainData, trainTarget, data_target):
 			resp = nearest_neighbors(e_dist, data_points[index], index, k)
 			full_rank_resp.append(resp)
 
-		prediction = np.matmul(np.transpose(trainTarget), np.transpose(full_rank_resp))
+		prediction = np.matmul(full_rank_resp, trainTarget)
 		mse = mean_squared_error(prediction, data_target)
 		prediction_list.append(prediction)
 		data_mse.append(mse)
@@ -107,8 +102,9 @@ def predict_part3(data_points, trainData, trainTarget, data_target):
 	:param data_target: the prediction values of data_points to calculate error
 	:return: list of error percentage by k, list of prediction by k.
 	"""
-	if data_target.all() == None:
-		data_target = trainTarget
+	print (np.shape(data_points))
+	print (np.shape(data_target))
+	print (len(data_points	))
 	k_list = [1, 5, 10, 25, 50, 100, 200]
 	prediction_list = list()
 	error_list = list()
@@ -118,12 +114,23 @@ def predict_part3(data_points, trainData, trainTarget, data_target):
 		for index in range(len(data_points)):
 			indices = nearest_neighbors_part3(e_dist, data_points[index], index, k)
 			values = list()
-			for index in indices:
-				values.append(trainTarget[index])
+			# collect values into a matrix
+			for i in indices:
+				values.append(trainTarget[i])
 			y, idx, count = tf.unique_with_counts(values)
 			y, idx, count = sess.run(y), sess.run(idx), list(sess.run(count))
-			full_rank_resp.append(y[count.index(max(count))])
+			# collect into a full rank prediction / responsibility matrix
+			prediction = y[count.index(max(count))]
+			full_rank_resp.append(prediction)
+			if prediction != data_target[index]:
+				print ("Error detected!!!!!")
+				print ("prediction: " + str(prediction))
+				print ("actual:     " + str(data_target[index]))
+				plt.imshow(np.reshape(data_points[index],(32,32)), cmap='Greys_r')
+				plt.show()
+
 		prediction_list.append(full_rank_resp)
+		# use a classification error instead of a regression error
 		error = anton_error(np.transpose(full_rank_resp), np.transpose(data_target))
 		error_list.append(error)
 	return error_list, prediction_list
@@ -156,12 +163,12 @@ def main():
 	trainData, trainTarget, validData, validTarget, testData, testTarget = partition_data(Data, Target)
 
 	###########
-	plt.scatter(trainData, trainTarget, c="g", alpha=0.5)
-	plt.scatter(validData, validTarget, c="r", alpha=0.5)
-	plt.scatter(testData, testTarget, c="b", alpha=0.5)
-	plt.xlabel("X")
-	plt.ylabel("Y")
-	plt.legend(loc=2)
+	# plt.scatter(trainData, trainTarget, c="g", alpha=0.5)
+	# plt.scatter(validData, validTarget, c="r", alpha=0.5)
+	# plt.scatter(testData, testTarget, c="b", alpha=0.5)
+	# plt.xlabel("X")
+	# plt.ylabel("Y")
+	# plt.legend(loc=2)
 
 	###########
 
@@ -172,7 +179,6 @@ def main():
 	training MSE loss, validation MSE loss and test MSE loss. Choose the best
 	k using the validation error.
 	'''
-
 
 	#Train MSE
 	print ("Train MSE")
@@ -200,13 +206,14 @@ def main():
 	print (prediction_list)
 
 	quit()
+	'''
 	# for prediction in prediction_list:
 	# 	plt.figure()
 	# 	plt.scatter(Data, Target, c = "b", alpha = 0.5)
 	# 	plt.plot(X, np.transpose(prediction), c = "g")
 	# plt.show()
 
-	'''
+
 	Part 3. 1 Predicting class label
 	Modify the prediction function for regression in section 1 and use 
 	majority voting over k nearest neighbors to predict the final class. 
@@ -214,9 +221,8 @@ def main():
 	the relevant snippet of code for this task.
 	'''
 	# task 0
-	trainData, validData, testData, trainTarget, validTarget, testTarget = data_segmentation("data.npy", "target.npy", 1)
-
-	error_list, prediction_list = test_k_values_part3(testData, trainData, trainTarget, testTarget)
+	trainData, validData, testData, trainTarget, validTarget, testTarget = data_segmentation("data.npy", "target.npy", 0)
+	error_list, prediction_list = predict_part3(testData, trainData, trainTarget, testTarget)
 	
 	for i in range(len(error_list)):
 		prediction = prediction_list[i]
