@@ -1,10 +1,26 @@
+'''
+University of Toronto
+ECE521 Assignment 1
+Due date: Feb 2nd, 2018
+Name, student number:
+	Won Young Shin, 1002077637
+	Zinan Lin, 1001370287
+
+'''
 import tensorflow as tf
 import numpy as np
-#from matplotlib import pyplot as plt
-#import matplotlib
+from matplotlib import pyplot as plt
+import matplotlib
+import sys
 sess = tf.Session()
 
 def euclidean_distance(X, Z):
+	"""
+	:param x: a n-by-d dimensional array
+	:param z: an m-by-d dimensional array
+	:return: a n-by-m dimensional array which is the pairwise
+	        euclidean distance of input x and z.
+	"""
 	global sess
 	x_sq = tf.reshape(tf.reduce_sum(X*X, 1), [-1, 1])
 	z_sq = tf.reshape(tf.reduce_sum(Z*Z, 1), [1, -1])
@@ -13,15 +29,14 @@ def euclidean_distance(X, Z):
 	return matrix
 
 def nearest_neighbors(distance_matrix, x_star, index, k):
-	# x = training data = list
-	# k = number of neighbors
+
 	global sess
-	inv_e_dist = 1 / distance_matrix[index]
+	inv_e_dist = 1.0 / distance_matrix[index]
 	values, indices = tf.nn.top_k(inv_e_dist, k)
 	resp = np.zeros(np.shape(inv_e_dist))
 	run_ind = sess.run(indices)
 	np.put(resp, run_ind, 1.0 / k)
-	return 
+	return resp
 
 def nearest_neighbors_part3(distance_matrix, x_star, index, k):
 	# x = training data = list
@@ -41,6 +56,17 @@ def nearest_neighbors_part3(distance_matrix, x_star, index, k):
 def mean_squared_error(prediction, target):
 	return ((prediction - target) ** 2).mean() / 2
 
+def anton_error(prediction, target):
+	print (prediction)
+	print (target)
+	diff = prediction - target
+	num_error = 0
+	for i in range(len(prediction)):
+		if prediction[i] != target[i]:
+			num_error += 1
+	return num_error / float(len(target))
+	return 1.0 - (len(np.nonzero(prediction - target)) / float(len(target)))
+
 def get_data():
 	Data = np.linspace(1.0, 10.0, num = 100) [:, np.newaxis]
 	Target = np.sin(Data) + 0.1 * np.power(Data, 2) + 0.5 * np.random.randn(100, 1)
@@ -56,41 +82,38 @@ def partition_data(Data, Target):
 	return trainData, trainTarget, validData, validTarget, testData, testTarget
 
 def test_k_values(data_points, trainData, trainTarget, kval = None):
-	if kval == None:
-		k_list = [1, 3, 5]
-		prediction_list = list()
-	else:
-		k_list = [kval]
+	k_list = [1, 3, 5, 50]
+	prediction_list = list()
 	data_mse = list()
 	e_dist = euclidean_distance(data_points, trainData)
 	for k in k_list:
-		print ("Calculating for k: " + str(k))
 		full_rank_resp = list()
 		for index in range(len(data_points)):
 			resp = nearest_neighbors(e_dist, data_points[index], index, k)
 			full_rank_resp.append(resp)
 
 		prediction = np.matmul(np.transpose(trainTarget), np.transpose(full_rank_resp))
-		print (prediction)
 		mse = mean_squared_error(prediction, trainTarget)
 		prediction_list.append(prediction)
 		data_mse.append(mse)
 
-	print ("mse: ")
-	print (data_mse)
 	return data_mse, prediction_list
 
-def test_k_values_part3(data_points, trainData, trainTarget, kval = None):
-	if kval == None:
-		k_list = [1, 3]
-	else:
-		k_list = [kval]
+def predict_part3(data_points, trainData, trainTarget, data_target):
+	"""
+	:param data_points: the matrix of data points that will be predicted
+	:param trainData: the training data that will be used for the model
+	:param trainTarget: the training target that the training data will use
+	:param data_target: the prediction values of data_points to calculate error
+	:return: list of error percentage by k, list of prediction by k.
+	"""
+	if data_target.all() == None:
+		data_target = trainTarget
+	k_list = [1, 5, 10, 25, 50, 100, 200]
 	prediction_list = list()
-	data_mse = list()
+	error_list = list()
 	e_dist = euclidean_distance(data_points, trainData)
-	print (np.shape(e_dist))
 	for k in k_list:
-		print ("Calculating for k: " + str(k))
 		full_rank_resp = list()
 		for index in range(len(data_points)):
 			indices = nearest_neighbors_part3(e_dist, data_points[index], index, k)
@@ -100,14 +123,14 @@ def test_k_values_part3(data_points, trainData, trainTarget, kval = None):
 			y, idx, count = tf.unique_with_counts(values)
 			y, idx, count = sess.run(y), sess.run(idx), list(sess.run(count))
 			full_rank_resp.append(y[count.index(max(count))])
-		print (full_rank_resp)
-
-	return data_mse, prediction_list
+		prediction_list.append(full_rank_resp)
+		error = anton_error(np.transpose(full_rank_resp), np.transpose(data_target))
+		error_list.append(error)
+	return error_list, prediction_list
 
 
 def data_segmentation(data_path, target_path, task):
-	# task = 0 >> select the name ID targets for face recognition task
-	# task = 1 >> select the gender ID targets for gender recognition task 
+
 	data = np.load(data_path) / 255.0
 	data = np.reshape(data, [-1, 32*32])
 
@@ -133,13 +156,13 @@ def main():
 	trainData, trainTarget, validData, validTarget, testData, testTarget = partition_data(Data, Target)
 
 	###########
-	# plt.scatter(trainData, trainTarget, c="g", alpha=0.5)
-	# plt.scatter(validData, validTarget, c="r", alpha=0.5)
-	# plt.scatter(testData, testTarget, c="b", alpha=0.5)
-	# plt.xlabel("X")
-	# plt.ylabel("Y")
-	# plt.legend(loc=2)
-	
+	plt.scatter(trainData, trainTarget, c="g", alpha=0.5)
+	plt.scatter(validData, validTarget, c="r", alpha=0.5)
+	plt.scatter(testData, testTarget, c="b", alpha=0.5)
+	plt.xlabel("X")
+	plt.ylabel("Y")
+	plt.legend(loc=2)
+
 	###########
 
 	'''
@@ -151,29 +174,38 @@ def main():
 	'''
 
 
-	# Train MSE
-	#train_mse, _ = test_k_values(trainData, trainData, trainTarget)
+	#Train MSE
+	print ("Train MSE")
+	train_mse, prediction_list = test_k_values(trainData, trainData, trainTarget)
+	print (train_mse)
+	print (prediction_list)
 
-	# Validation MSE
-	#print ("Validation MSE")
-	#valid_mse, _ = test_k_values(validData, trainData, trainTarget)
 
-	# Test MSE
-	#print ("Test MSE")
-	#test_mse, _ = test_k_values(testData, trainData, trainTarget)
 
-	# random points MSE
-	#print ("X MSE")
-	#X = np.linspace(0.0, 11.0, num = 1000)[:, np.newaxis]
-	#x_mse, prediction_list = test_k_values(X, trainData, trainTarget)
-	#print (x_mse)
-	#print (prediction_list)
+	#Validation MSE
+	print ("Validation MSE")
+	valid_mse, prediction_list = test_k_values(validData, trainData, trainTarget)
+	print (valid_mse)
+	print (prediction_list)
 
+	#Test MSE
+	print ("Test MSE")
+	test_mse, prediction_list = test_k_values(testData, trainData, trainTarget)
+	print (test_mse)
+	print (prediction_list)
+
+	#random points MSE
+	print ("X MSE")
+	X = np.linspace(0.0, 11.0, num = 1000)[:, np.newaxis]
+	x_mse, prediction_list = test_k_values(X, trainData, trainTarget)
+	print (x_mse)
+	print (prediction_list)
+	quit()
 	# for prediction in prediction_list:
 	# 	plt.figure()
 	# 	plt.scatter(Data, Target, c = "b", alpha = 0.5)
 	# 	plt.plot(X, np.transpose(prediction), c = "g")
-	# #plt.show()
+	# plt.show()
 
 	'''
 	Part 3. 1 Predicting class label
@@ -183,14 +215,17 @@ def main():
 	the relevant snippet of code for this task.
 	'''
 	# task 0
-	trainData, validData, testData, trainTarget, validTarget, testTarget = data_segmentation("data.npy", "target.npy", 0)
+	trainData, validData, testData, trainTarget, validTarget, testTarget = data_segmentation("data.npy", "target.npy", 1)
 
-	train_mse, prediction_list = test_k_values_part3(trainData, trainData, trainTarget)
+	error_list, prediction_list = test_k_values_part3(testData, trainData, trainTarget, testTarget)
 	
-	for prediction in prediction_list:
+	for i in range(len(error_list)):
+		prediction = prediction_list[i]
+		error = error_list[i]
 		y, idx, count = tf.unique_with_counts(tf.transpose(prediction))
+		print ("error: " + str(error))
 		print (sess.run(y))
-		#print (sess.run(idx))
+		print (sess.run(idx))
 		print (sess.run(count))
 
 
