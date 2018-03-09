@@ -6,8 +6,7 @@ import numpy as np
 learning_rate = 0.01
 training_epochs = 5000
 display_step = 50
-batch_size = 500
-gradient_loss = tf.constant(0.01)
+
 
 print ("hello world")
 def get_data():
@@ -47,24 +46,25 @@ print (pred.shape)
 cost = tf.reduce_sum(tf.pow(pred-Y, 2))/(2*n_samples)
 
 learning_rates = [0.005, 0.001, 0.0001]
+lr = 0.005
+batch_sizes = [500, 1500, 3500]
 losses = list()
-for lr in learning_rates:
+for bs in batch_sizes:
 	optimizer = tf.train.GradientDescentOptimizer(lr).minimize(
-		loss=cost,
-		grad_loss=gradient_loss
+		loss=cost
 	)
 	init = tf.global_variables_initializer()
-	print ("learning rate: " + str(lr))
+	print ("batch size: " + str(bs))
 
 	with tf.Session() as sess:
 		sess.run(init)
-		num_batches = int(trainData.shape[0] / batch_size)
+		num_batches = int(trainData.shape[0] / bs)
 		for epoch in range(training_epochs):
 			
 			c = None
 			for i in range(num_batches):
-				trainBatchi = trainData[i*batch_size: (i+1) * batch_size]
-				trainTargeti = trainTarget[i*batch_size: (i+1) * batch_size]
+				trainBatchi = trainData[i*bs: (i+1) * bs]
+				trainTargeti = trainTarget[i*bs: (i+1) * bs]
 				sess.run(optimizer, feed_dict={X: trainBatchi, Y: trainTargeti})
 				if epoch % display_step == 0:
 					c = sess.run(cost, feed_dict={X: trainBatchi, Y:trainTargeti})
@@ -72,9 +72,9 @@ for lr in learning_rates:
 			if epoch % display_step == 0:	
 				print("Epoch: " + str(epoch) + ", cost: " + str(c))
 
-		test_cost = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
-		print("Test cost: " + str(test_cost))
-		losses.append(test_cost)
+		train_loss = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
+		print("Train cost: " + str(train_loss))
+		losses.append(train_loss)
 
 
 print (losses)
