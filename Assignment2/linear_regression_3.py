@@ -48,10 +48,14 @@ cost = tf.reduce_sum(tf.pow(pred-Y, 2))/(2*n_samples)
 learning_rates = [0.005, 0.001, 0.0001]
 lr = 0.005
 batch_sizes = [500, 1500, 3500]
+bs = 500
+weight_decays = [0.0, 0.001, 0.1, 1.0]
+
 losses = list()
-for bs in batch_sizes:
+for wd in weight_decays:
 	optimizer = tf.train.GradientDescentOptimizer(lr).minimize(
-		loss=cost
+		loss=cost,
+		
 	)
 	init = tf.global_variables_initializer()
 	print ("batch size: " + str(bs))
