@@ -3,11 +3,14 @@ import tensorflow as tf
 import numpy as np
 
 # Parameters
+learning_rate = 0.005
 training_epochs = 20000
 display_step = 50
-weight_decay_param = 0
+batch_size = 500
 
 
+
+print ("hello world")
 def get_data():
 	with np.load("notMNIST.npz") as data :
 		Data, Target = data ["images"], data["labels"]
@@ -40,48 +43,10 @@ W = tf.Variable(tf.ones((784, 1)), name="weight")
 b = tf.Variable(tf.ones(1), name="bias")
 
 pred = tf.add(tf.matmul(X, W), b)
-print (pred.shape)
 
 lD = tf.reduce_sum(tf.norm(pred - Y)) / (2*n_samples)
-lW = weight_decay_param * tf.norm(W) / 2
+lW = wd * tf.norm(W) / 2
 cost = lD + lW
-
-lr = 0.005
-batch_sizes = [500, 1500, 3500]
-losses = list()
-for bs in batch_sizes:
-	optimizer = tf.train.GradientDescentOptimizer(lr).minimize(
-		loss=cost
-	)
-	init = tf.global_variables_initializer()
-	print ("batch size: " + str(bs))
-
-	with tf.Session() as sess:
-		sess.run(init)
-		num_batches = int(trainData.shape[0] / bs)
-		for epoch in range(training_epochs):
-			
-			c = None
-			for i in range(num_batches):
-				trainBatchi = trainData[i*bs: (i+1) * bs]
-				trainTargeti = trainTarget[i*bs: (i+1) * bs]
-				sess.run(optimizer, feed_dict={X: trainBatchi, Y: trainTargeti})
-				if epoch % display_step == 0:
-					c = sess.run(cost, feed_dict={X: trainBatchi, Y:trainTargeti})
-
-			if epoch % display_step == 0:	
-				print("Epoch: " + str(epoch) + ", cost: " + str(c))
-
-		train_loss = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
-		print("Train cost: " + str(train_loss))
-		losses.append(train_loss)
-
-
-print (losses)
-
-
-
-
 
 
 
