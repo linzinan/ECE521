@@ -1,14 +1,15 @@
 
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
-rng = np.random
 
 # Parameters
 learning_rate = 0.01
-training_epochs = 1000
+training_epochs = 5000
 display_step = 50
+batch_size = 500
+gradient_loss = tf.constant(0.01)
 
+print ("hello world")
 def get_data():
 	with np.load("notMNIST.npz") as data :
 		Data, Target = data ["images"], data["labels"]
@@ -30,50 +31,53 @@ def get_data():
 
 
 trainData, trainTarget, validTarget, validTarget, testData, testTarget = get_data()
+trainData = trainData.reshape(trainData.shape[0], 784)
 n_samples = trainData.shape[0]
+print (trainData.shape)
+print (trainTarget.shape)
 
-X = tf.placeholder("float")
-Y = tf.placeholder("float")
+X = tf.placeholder(tf.float32, shape=(None, 784))
+Y = tf.placeholder(tf.float32, shape=(None, 1))
+W = tf.Variable(tf.ones((784, 1)), name="weight")
+b = tf.Variable(tf.ones(1), name="bias")
 
-W = tf.Variable(rng.randn(), name="weight")
-b = tf.Variable(rng.randn(), name="bias")
-
-pred = tf.add(tf.multiply(X, W), b)
+pred = tf.add(tf.matmul(X, W), b)
+print (pred.shape)
 
 cost = tf.reduce_sum(tf.pow(pred-Y, 2))/(2*n_samples)
-learning_rates = [0.005, 0.001, 0.0001]
 
+learning_rates = [0.005, 0.001, 0.0001]
+losses = list()
 for lr in learning_rates:
-	optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
+	optimizer = tf.train.GradientDescentOptimizer(lr).minimize(
+		loss=cost,
+		grad_loss=gradient_loss
+	)
 	init = tf.global_variables_initializer()
+	print ("learning rate: " + str(lr))
 
 	with tf.Session() as sess:
-		# Run the initializer
 		sess.run(init)
-		# Fit all training data
+		num_batches = int(trainData.shape[0] / batch_size)
 		for epoch in range(training_epochs):
-			for (x, y) in zip(trainData, trainTarget):
-				sess.run(optimizer, feed_dict={X: x, Y: y})
+			
+			c = None
+			for i in range(num_batches):
+				trainBatchi = trainData[i*batch_size: (i+1) * batch_size]
+				trainTargeti = trainTarget[i*batch_size: (i+1) * batch_size]
+				sess.run(optimizer, feed_dict={X: trainBatchi, Y: trainTargeti})
+				if epoch % display_step == 0:
+					c = sess.run(cost, feed_dict={X: trainBatchi, Y:trainTargeti})
 
-		    # Display logs per epoch step
-			if (epoch+1) % display_step == 0:
-				c = sess.run(cost, feed_dict={X: trainData, Y:trainTarget})
-				print("Epoch:", '%04d' % (epoch+1), "cost=", "{:.9f}".format(c), \
-				"W=", sess.run(W), "b=", sess.run(b))
-				quit()
+			if epoch % display_step == 0:	
+				print("Epoch: " + str(epoch) + ", cost: " + str(c))
 
-		print("Optimization Finished!")
-		training_cost = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
-		print("Training cost=", training_cost, "W=", sess.run(W), "b=", sess.run(b), '\n')
-
-		# Graphic display
-		plt.plot(trainData, trainTarget, 'ro', label='Original data')
-		plt.plot(trainData, sess.run(W) * trainData + sess.run(b), label='Fitted line')
-		plt.legend()
-		plt.show()
+		test_cost = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
+		print("Test cost: " + str(test_cost))
+		losses.append(test_cost)
 
 
-
+print (losses)
 
 
 
