@@ -25,10 +25,10 @@ def get_data():
 		trainData, trainTarget = Data[:3500], Target[:3500]
 		validData, validTarget = Data[3500:3600], Target[3500:3600]
 		testData, testTarget = Data[3600:], Target[3600:]
-		return trainData, trainTarget, validTarget, validTarget, testData, testTarget
+		return trainData, trainTarget, validData, validTarget, testData, testTarget
 
 
-trainData, trainTarget, validTarget, validTarget, testData, testTarget = get_data()
+trainData, trainTarget, validData, validTarget, testData, testTarget = get_data()
 trainData = trainData.reshape(trainData.shape[0], 784)
 n_samples = trainData.shape[0]
 print (trainData.shape)

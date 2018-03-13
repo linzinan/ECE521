@@ -1,16 +1,17 @@
-
 import tensorflow as tf
 import numpy as np
 
-# Parameters
-learning_rate = 0.005
-training_epochs = 20000
+
+
+# params
+weight_decay = 0.01
+training_epochs = 5000
 display_step = 50
 batch_size = 500
 
 
-
 print ("hello world")
+
 def get_data():
 	with np.load("notMNIST.npz") as data :
 		Data, Target = data ["images"], data["labels"]
@@ -31,29 +32,32 @@ def get_data():
 		return trainData, trainTarget, validData, validTarget, testData, testTarget
 
 
+
 trainData, trainTarget, validData, validTarget, testData, testTarget = get_data()
 trainData = trainData.reshape(trainData.shape[0], 784)
-n_samples = trainData.shape[0]
-print (trainData.shape)
-print (trainTarget.shape)
+num_samples = trainData.shape[0]
 
 X = tf.placeholder(tf.float32, shape=(None, 784))
 Y = tf.placeholder(tf.float32, shape=(None, 1))
 W = tf.Variable(tf.ones((784, 1)), name="weight")
 b = tf.Variable(tf.ones(1), name="bias")
 
-pred = tf.add(tf.matmul(X, W), b)
 
-weight_decays = [0.0, 0.001, 0.1, 1.0]
+prediction = tf.nn.sigmoid(tf.add(tf.matmul(X, W), b))
+#lD = tf.reduce_sum(-1 * p * tf.log(q) - (1 - p) * tf.log(1 - q))
+lD = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=prediction)) / num_samples
 
+lW = weight_decay * tf.norm(W) / 2
+
+# binary cross entropy function
+cost = lD + lW
+
+learning_rates = [0.001]
 losses = list()
-for wd in weight_decays:
-	lD = tf.reduce_sum(tf.norm(pred - Y)) / (2*n_samples)
-	lW = wd * tf.norm(W) / 2
-	cost = lD + lW
-	optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(
+
+for learning_rate in learning_rates:
+	optimizer = tf.train.AdamOptimizer(learning_rate).minimize(
 		loss=cost,
-		
 	)
 	init = tf.global_variables_initializer()
 	print ("batch size: " + str(batch_size))
@@ -78,8 +82,11 @@ for wd in weight_decays:
 		print("Train cost: " + str(train_loss))
 		losses.append(train_loss)
 
-
 print (losses)
+
+
+
+
 
 
 

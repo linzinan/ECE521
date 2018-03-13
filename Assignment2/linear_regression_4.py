@@ -39,15 +39,20 @@ print (trainTarget.shape)
 
 X = tf.placeholder(tf.float32, shape=(None, 784))
 Y = tf.placeholder(tf.float32, shape=(None, 1))
-W = tf.Variable(tf.ones((784, 1)), name="weight")
+
 b = tf.Variable(tf.ones(1), name="bias")
+W = tf.matmul(tf.matmul(tf.matrix_inverse(tf.matmul(tf.transpose(X), X)), tf.transpose(X)), Y)
 
 pred = tf.add(tf.matmul(X, W), b)
+cost = tf.reduce_sum(tf.norm(pred - Y)) / (2*n_samples)
 
-lD = tf.reduce_sum(tf.norm(pred - Y)) / (2*n_samples)
-lW = wd * tf.norm(W) / 2
-cost = lD + lW
 
+with tf.Session() as sess:
+
+	init = tf.global_variables_initializer()
+	sess.run(init)
+	loss = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
+	print (loss)
 
 
 

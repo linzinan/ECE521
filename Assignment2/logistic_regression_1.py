@@ -5,7 +5,6 @@ import numpy as np
 
 # params
 weight_decay = 0.01
-#learning_rate = 0.005
 training_epochs = 5000
 display_step = 50
 batch_size = 500
@@ -35,53 +34,53 @@ def get_data():
 
 
 trainData, trainTarget, validData, validTarget, testData, testTarget = get_data()
+trainData = trainData.reshape(trainData.shape[0], 784)
+num_samples = trainData.shape[0]
 
-p = tf.placeholder(tf.float32, shape=(None, 784))
-logit_q = tf.placeholder(tf.float32, shape=(None, 1))
-q = tf.nn.sigmoid(logit_q)
+X = tf.placeholder(tf.float32, shape=(None, 784))
+Y = tf.placeholder(tf.float32, shape=(None, 1))
 W = tf.Variable(tf.ones((784, 1)), name="weight")
 b = tf.Variable(tf.ones(1), name="bias")
 
 
-prediction = tf.nn.sigmoid(tf.add(tf.matmul(p, W), b))
-lD = tf.reduce_sum(-1 * p * tf.log(q) - (1 - p) * tf.log(1 - q))
-lD = tf.nn.sigmoid_cross_entropy_with_logits(labels=p, logits=logit_q)
+prediction = tf.nn.sigmoid(tf.add(tf.matmul(X, W), b))
+#lD = tf.reduce_sum(-1 * p * tf.log(q) - (1 - p) * tf.log(1 - q))
+lD = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=Y, logits=prediction)) / num_samples
 
 lW = weight_decay * tf.norm(W) / 2
 
 # binary cross entropy function
 cost = lD + lW
-print (cost)
 
 learning_rates = [0.005, 0.001, 0.0001]
 losses = list()
 
 for learning_rate in learning_rates:
-	optimizer = tf.train.GradientDescentOptimizer(learning_rate).optimize(
+	optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(
 		loss=cost,
 	)
-	quit()
 	init = tf.global_variables_initializer()
 	print ("batch size: " + str(batch_size))
 
 	with tf.Session() as sess:
-		c = None
+		sess.run(init)
+		num_batches = int(trainData.shape[0] / batch_size)
 		for epoch in range(training_epochs):
-			trainDataBatchi = trainData[(epoch) * batch_size: (epoch + 1) * batch_size]
-			trainTargetBatchi = trainTarget[(epoch) * batch_size: (epoch + 1) * batch_size]
-			sess.run(optimizer, feed_dict={
-				X:trainDataBatchi,
-				Y:trainTargetBatchi
-				})
-			if epoch % display_step == 0:
+			
+			c = None
+			for i in range(num_batches):
+				trainBatchi = trainData[i*batch_size: (i+1) * batch_size]
+				trainTargeti = trainTarget[i*batch_size: (i+1) * batch_size]
+				sess.run(optimizer, feed_dict={X: trainBatchi, Y: trainTargeti})
+				if epoch % display_step == 0:
 					c = sess.run(cost, feed_dict={X: trainBatchi, Y:trainTargeti})
 
-			if epoch % display_step == 0:
+			if epoch % display_step == 0:	
 				print("Epoch: " + str(epoch) + ", cost: " + str(c))
+
 		train_loss = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
 		print("Train cost: " + str(train_loss))
 		losses.append(train_loss)
-
 
 print (losses)
 
