@@ -40,7 +40,7 @@ n_samples = trainData.shape[0]
 
 X = tf.placeholder(tf.float32, shape=(None, 785))
 Y = tf.placeholder(tf.float32, shape=(None, 1))
-
+W = tf.placeholder(tf.float32, shape=(None, 785))
 bias_factor_train = np.ones((trainData.shape[0], 1))
 trainData = tf.Session().run(tf.concat([bias_factor_train, trainData], 1))
 
@@ -50,9 +50,9 @@ validData = tf.Session().run(tf.concat([bias_factor_valid, validData], 1))
 bias_factor_test = np.ones((testData.shape[0], 1))
 testData = tf.Session().run(tf.concat([bias_factor_test, testData], 1))
 
-W = tf.matmul(tf.matmul(tf.matrix_inverse(tf.matmul(tf.transpose(X), X)), tf.transpose(X)), Y)
+W_opt = tf.matmul(tf.matmul(tf.matrix_inverse(tf.matmul(tf.transpose(X), X)), tf.transpose(X)), Y)
 
-pred = tf.matmul(X, W)
+pred = tf.matmul(X, W_opt)
 classification = tf.cast(tf.greater(pred, 0.5), tf.float64)
 correct = tf.reduce_sum(tf.cast(tf.equal(classification, tf.cast(Y, tf.float64)), tf.float64))
 accuracy = tf.cast(correct, tf.float64) / tf.cast(tf.shape(classification)[0], tf.float64)
@@ -62,18 +62,19 @@ start = time.time()
 with tf.Session() as sess:
 	init = tf.global_variables_initializer()
 	sess.run(init)
-
 	cost = tf.reduce_sum(tf.norm(pred - Y)) / (2 * trainData.shape[0])
-	train_loss = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
-	train_acc = sess.run(accuracy, feed_dict={X: trainData, Y: trainTarget})
+	W_train_opt = sess.run(W_opt, feed_dict={X: trainData, Y: trainTarget})
+
+	train_loss = sess.run(cost, feed_dict={X: trainData, Y: trainTarget, W_opt: W_train_opt})
+	train_acc = sess.run(accuracy, feed_dict={X: trainData, Y: trainTarget, W_opt: W_train_opt})
 
 	cost = tf.reduce_sum(tf.norm(pred - Y)) / (2 * validData.shape[0])
-	valid_loss = sess.run(cost, feed_dict={X: validData, Y: validTarget})
-	valid_acc = sess.run(accuracy, feed_dict={X: validData, Y: validTarget})
+	valid_loss = sess.run(cost, feed_dict={X: validData, Y: validTarget, W_opt: W_train_opt})
+	valid_acc = sess.run(accuracy, feed_dict={X: validData, Y: validTarget, W_opt: W_train_opt})
 
 	cost = tf.reduce_sum(tf.norm(pred - Y)) / (2 * testData.shape[0])
-	test_loss = sess.run(cost, feed_dict={X: testData, Y: testTarget})
-	test_acc = sess.run(accuracy, feed_dict={X: testData, Y: testTarget})
+	test_loss = sess.run(cost, feed_dict={X: testData, Y: testTarget, W_opt: W_train_opt})
+	test_acc = sess.run(accuracy, feed_dict={X: testData, Y: testTarget, W_opt: W_train_opt})
 
 	print ("Train loss: " + str(train_loss))
 	print ("Train acc: " + str(train_acc))
