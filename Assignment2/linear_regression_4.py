@@ -1,16 +1,8 @@
 
 import tensorflow as tf
 import numpy as np
+import time
 
-# Parameters
-learning_rate = 0.005
-training_epochs = 20000
-display_step = 50
-batch_size = 500
-
-
-
-print ("hello world")
 def get_data():
 	with np.load("notMNIST.npz") as data :
 		Data, Target = data ["images"], data["labels"]
@@ -28,70 +20,103 @@ def get_data():
 		trainData, trainTarget = Data[:3500], Target[:3500]
 		validData, validTarget = Data[3500:3600], Target[3500:3600]
 		testData, testTarget = Data[3600:], Target[3600:]
-		return trainData, trainTarget, validTarget, validTarget, testData, testTarget
 
+		trainData = trainData.reshape(trainData.shape[0], 784)
+		validData = validData.reshape(validData.shape[0], 784)
+		testData = testData.reshape(testData.shape[0], 784)
+		return trainData, trainTarget, validData, validTarget, testData, testTarget
 
-trainData, trainTarget, validTarget, validTarget, testData, testTarget = get_data()
-trainData = trainData.reshape(trainData.shape[0], 784)
+trainData, trainTarget, validData, validTarget, testData, testTarget = get_data()
 n_samples = trainData.shape[0]
-print (trainData.shape)
-print (trainTarget.shape)
 
-X = tf.placeholder(tf.float32, shape=(None, 784))
+X = tf.placeholder(tf.float32, shape=(None, 785))
 Y = tf.placeholder(tf.float32, shape=(None, 1))
 
-b = tf.Variable(tf.ones(1), name="bias")
+bias_factor = np.ones((n_samples, 1))
+trainData = tf.Session().run(tf.concat([bias_factor, trainData], 1))
+
 W = tf.matmul(tf.matmul(tf.matrix_inverse(tf.matmul(tf.transpose(X), X)), tf.transpose(X)), Y)
 
-pred = tf.add(tf.matmul(X, W), b)
-cost = tf.reduce_sum(tf.norm(pred - Y)) / (2*n_samples)
+pred = tf.matmul(X, W)
+classification = tf.cast(tf.greater(pred, 0.5), tf.float64)
+correct = tf.reduce_sum(tf.cast(tf.equal(classification, tf.cast(Y, tf.float64)), tf.float64))
+accuracy = tf.cast(correct, tf.float64) / tf.cast(tf.shape(classification)[0], tf.float64)
 
 
+
+cost = tf.reduce_sum(tf.norm(pred - Y)) / (2 * n_samples)
+
+start = time.time()
 with tf.Session() as sess:
 
 	init = tf.global_variables_initializer()
 	sess.run(init)
 	loss = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
-	print (loss)
+	acc = sess.run(accuracy, feed_dict={X: trainData, Y: trainTarget})
+	print ("Loss: " + str(loss))
+	print ("Accuracy: " + str(acc))
+end = time.time()
+print ("Time: " + str(end-start))
 
 
+# Parameters
+training_epochs = 20000 # 20000
+learning_rate = 0.005 # 0.005
+display_step = 1000 # 1000
+batch_size = 500
+weight_decay = 0
+
+trainData, trainTarget, validData, validTarget, testData, testTarget = get_data()
+n_samples = trainData.shape[0]
+
+X = tf.placeholder(tf.float32, shape=(None, 784))
+Y = tf.placeholder(tf.float32, shape=(None, 1))
+W = tf.Variable(tf.ones((784, 1)), name="weight")
+b = tf.Variable(tf.ones(1), name="bias")
+
+pred = tf.add(tf.matmul(X, W), b)
+classification = tf.cast(tf.greater(pred, 0.5), tf.float64)
+correct = tf.reduce_sum(tf.cast(tf.equal(classification, tf.cast(Y, tf.float64)), tf.float64))
+accuracy = tf.cast(correct, tf.float64) / tf.cast(tf.shape(classification)[0], tf.float64)
 
 
+with tf.Session() as sess:
+	lD = tf.reduce_sum(tf.norm(pred - Y)) / (2 * batch_size)
+	lW = weight_decay * tf.norm(W) / 2
+	cost = lD + lW
 
+	init = tf.global_variables_initializer()
+	sess.run(init)
 
+	optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss=cost)
+	num_batches = int(trainData.shape[0] / batch_size)
+	start = time.time()
+	for epoch in range(training_epochs):
+		c = None
+		for i in range(num_batches):
+			trainBatchi = trainData[i*batch_size: (i+1) * batch_size]
+			trainTargeti = trainTarget[i*batch_size: (i+1) * batch_size]
+			sess.run(optimizer, feed_dict={X: trainBatchi, Y: trainTargeti})
+			if epoch % display_step == 0:
+				c = sess.run(cost, feed_dict={X: trainBatchi, Y:trainTargeti})
 
+		if epoch % display_step == 0:	
+			print("Epoch: " + str(epoch) + ", cost: " + str(c))
 
+	# done training, measure time.
+	end = time.time()
 
+	# redefine cost
+	lD = tf.reduce_sum(tf.norm(pred - Y)) / (2 * trainData.shape[0])
+	lW = weight_decay * tf.norm(W) / 2
+	cost = lD + lW
 
+	train_loss = sess.run(cost, feed_dict={X: trainData, Y: trainTarget})
+	train_acc = sess.run(accuracy, feed_dict={X: trainData, Y: trainTarget})
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	print ("Train loss: " + str(train_loss))
+	print ("Train acc: " + str(train_acc))
+	print ("Time: " + str(end-start))
 
 
 
